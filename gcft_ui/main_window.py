@@ -54,13 +54,13 @@ class GCFTWindow(QMainWindow):
     super().__init__()
     self.ui = Ui_MainWindow()
     self.ui.setupUi(self)
-    
+
     self.setAcceptDrops(True)
-    
+
     self.display_hexadecimal_numbers = True # TODO hex/decimal setting
-    
+
     self.ui.tabWidget.currentChanged.connect(self.save_last_used_tab)
-    
+
     # Assign attributes to the main window and each tab to allow them to easily access the other tabs by name.
     # e.g. So you can do `self.bti_tab.bti` instead of `self.window().ui.bti_tab.bti`.
     tabs = list(map(self.ui.tabWidget.widget, range(self.ui.tabWidget.count())))
@@ -68,17 +68,17 @@ class GCFTWindow(QMainWindow):
       setattr(self, tab.objectName(), tab)
       for other_tab in tabs:
         setattr(tab, other_tab.objectName(), other_tab)
-    
+
     self.load_settings()
-    
+
     if "last_used_tab_name" in self.settings:
       self.set_tab_by_name(self.settings["last_used_tab_name"])
-    
-    self.setWindowTitle("GameCube File Tools %s" % VERSION)
-    
+
+    self.setWindowTitle(f"GameCube File Tools {VERSION}")
+
     icon_path = os.path.join(ASSETS_PATH, "icon.ico")
     self.setWindowIcon(QIcon(icon_path))
-    
+
     self.show()
   
   def load_settings(self):
@@ -104,7 +104,7 @@ class GCFTWindow(QMainWindow):
       if self.ui.tabWidget.tabText(i) == tab_name:
         self.ui.tabWidget.setCurrentIndex(i)
         return
-    print("No tab with name %s found." % tab_name)
+    print(f"No tab with name {tab_name} found.")
   
   def get_open_func_and_tab_name_for_file_path(self, file_path):
     file_ext = os.path.splitext(file_path)[1]
@@ -134,60 +134,62 @@ class GCFTWindow(QMainWindow):
   def generic_do_gui_file_operation(self, op_callback, is_opening, is_saving, is_folder, file_type, file_filter="", default_file_name=None):
     if not is_opening and not is_saving:
       raise Exception("Tried to perform a file operation without opening or saving")
-    
+
     if is_folder:
-      last_used_input_folder_key_name = "last_used_input_folder_for_%s_folders" % (file_type.lower())
-      last_used_output_folder_key_name = "last_used_output_folder_for_%s_folders" % (file_type.lower())
+      last_used_input_folder_key_name = (
+          f"last_used_input_folder_for_{file_type.lower()}_folders")
+      last_used_output_folder_key_name = (
+          f"last_used_output_folder_for_{file_type.lower()}_folders")
     else:
-      last_used_input_folder_key_name = "last_used_input_folder_for_%s" % (file_type.lower())
-      last_used_output_folder_key_name = "last_used_output_folder_for_%s" % (file_type.lower())
-    
-    if is_saving:
-      op_type = "save"
-    else:
-      op_type = "open"
-    
+      last_used_input_folder_key_name = (
+          f"last_used_input_folder_for_{file_type.lower()}")
+      last_used_output_folder_key_name = (
+          f"last_used_output_folder_for_{file_type.lower()}")
+
+    op_type = "save" if is_saving else "open"
     if is_opening:
       default_dir = None
       if last_used_input_folder_key_name in self.settings:
         default_dir = self.settings[last_used_input_folder_key_name]
-      
+
       if default_file_name is not None:
         if default_dir is None:
           default_dir = default_file_name
         else:
           default_dir = os.path.join(default_dir, default_file_name)
-      
+
       if is_folder:
         in_selected_path = QFileDialog.getExistingDirectory(self, "Select source folder to import from", default_dir)
       else:
-        in_selected_path, selected_filter = QFileDialog.getOpenFileName(self, "Open %s" % file_type, default_dir, file_filter)
+        in_selected_path, selected_filter = QFileDialog.getOpenFileName(
+            self, f"Open {file_type}", default_dir, file_filter)
       if not in_selected_path:
         return
-      
+
       if is_folder and not os.path.isdir(in_selected_path):
-        raise Exception("%s folder not found: %s" % (file_type, in_selected_path))
+        raise Exception(f"{file_type} folder not found: {in_selected_path}")
       if not is_folder and not os.path.isfile(in_selected_path):
-        raise Exception("%s file not found: %s" % (file_type, in_selected_path))
-    
+        raise Exception(f"{file_type} file not found: {in_selected_path}")
+
     if is_saving:
       default_dir = None
       if last_used_output_folder_key_name in self.settings:
         default_dir = self.settings[last_used_output_folder_key_name]
-      
+
       if default_file_name is not None:
         if default_dir is None:
           default_dir = default_file_name
         else:
           default_dir = os.path.join(default_dir, default_file_name)
-      
+
       if is_folder:
         out_selected_path = QFileDialog.getExistingDirectory(self, "Select destination folder to export to", default_dir)
       else:
-        out_selected_path, selected_filter = QFileDialog.getSaveFileName(self, "Save %s" % file_type, default_dir, file_filter)
+        out_selected_path, selected_filter = QFileDialog.getSaveFileName(
+            self, f"Save {file_type}", default_dir, file_filter)
       if not out_selected_path:
         return
-    
+
     try:
       if is_opening and is_saving:
         op_callback(in_selected_path, out_selected_path)
@@ -195,16 +197,15 @@ class GCFTWindow(QMainWindow):
         op_callback(in_selected_path)
       else:
         op_callback(out_selected_path)
-    # TODO: more specific exceptions, like read permission, FileNotFoundError, etc
     except Exception as e:
       stack_trace = traceback.format_exc()
-      error_message_title = "Failed to %s %s" % (op_type, file_type)
+      error_message_title = f"Failed to {op_type} {file_type}"
       if is_folder:
         error_message_title += " folder"
       error_message = "%s with error:\n%s\n\n%s" % (error_message_title, str(e), stack_trace)
       QMessageBox.critical(self, error_message_title, error_message)
       return
-    
+
     if is_opening:
       self.settings[last_used_input_folder_key_name] = os.path.dirname(in_selected_path)
     if is_saving:
@@ -216,17 +217,14 @@ class GCFTWindow(QMainWindow):
     if is_folder:
       message += " and all of its children"
     message += "?"
-    
+
     response = QMessageBox.question(self, 
       "Confirm delete",
       message,
       QMessageBox.Cancel | QMessageBox.Yes,
       QMessageBox.Cancel
     )
-    if response == QMessageBox.Yes:
-      return True
-    else:
-      return False
+    return response == QMessageBox.Yes
   
   def stringify_number(self, num, min_hex_chars=1):
     if self.display_hexadecimal_numbers:
@@ -305,17 +303,13 @@ class GCFTWindow(QMainWindow):
     else:
       QMessageBox.warning(self, "Unknown color format", "Color is neither RGB nor RGBA.")
       return
-    
+
     # Depending on the value of the background color of the button, we need to make the text color either black or white for contrast.
     h, s, v = colorsys.rgb_to_hsv(r/255, g/255, b/255)
-    if v > 0.5:
-      text_color = (0, 0, 0)
-    else:
-      text_color = (255, 255, 255)
-    
+    text_color = (0, 0, 0) if v > 0.5 else (255, 255, 255)
     color_selector_button.setStyleSheet(
       "background-color: rgb(%d, %d, %d);" % (r, g, b) + \
-      "color: rgb(%d, %d, %d);" % text_color,
+        "color: rgb(%d, %d, %d);" % text_color,
     )
   
   

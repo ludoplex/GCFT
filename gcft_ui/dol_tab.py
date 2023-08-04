@@ -42,7 +42,7 @@ class DOLTab(QWidget):
     )
   
   def export_dol(self):
-    dol_name = self.dol_name + ".dol"
+    dol_name = f"{self.dol_name}.dol"
     self.window().generic_do_gui_file_operation(
       op_callback=self.export_dol_by_path,
       is_opening=False, is_saving=True, is_folder=False,
@@ -106,24 +106,28 @@ class DOLTab(QWidget):
       QMessageBox.warning(self, "Conversion failed", "No offset given.")
       return
     if not re.search(r"^(?:0x)?[0-9a-f]+$", offset_str, re.IGNORECASE):
-      QMessageBox.warning(self, "Conversion failed", "'%s' is not a valid hexadecimal number." % offset_str)
+      QMessageBox.warning(
+          self,
+          "Conversion failed",
+          f"'{offset_str}' is not a valid hexadecimal number.",
+      )
       return
-    
+
     offset = int(offset_str, 16)
-    
+
     if offset < 0:
       QMessageBox.warning(self, "Conversion failed", "Offset can not be a negative number.")
       return
     if offset >= data_len(self.dol.data):
       QMessageBox.warning(self, "Conversion failed", "Offset is past the end of the DOL.")
       return
-    
+
     address = self.dol.convert_offset_to_address(offset)
-    
+
     if address is None:
       QMessageBox.warning(self, "Conversion failed", "Offset is not in any of the DOL sections, so it is not loaded to RAM.")
       return
-    
+
     self.ui.dol_address.setText("%08X" % address)
     self.ui.dol_offset.setText("%06X" % offset)
   
@@ -133,20 +137,24 @@ class DOLTab(QWidget):
       QMessageBox.warning(self, "Conversion failed", "No address given.")
       return
     if not re.search(r"^(?:0x)?[0-9a-f]+$", address_str, re.IGNORECASE):
-      QMessageBox.warning(self, "Conversion failed", "'%s' is not a valid hexadecimal number." % address_str)
+      QMessageBox.warning(
+          self,
+          "Conversion failed",
+          f"'{address_str}' is not a valid hexadecimal number.",
+      )
       return
-    
+
     address = int(address_str, 16)
-    
+
     if address < 0:
       QMessageBox.warning(self, "Conversion failed", "Address can not be a negative number.")
       return
-    
+
     offset = self.dol.convert_address_to_offset(address)
-    
+
     if offset is None:
       QMessageBox.warning(self, "Conversion failed", "Address is not in any of the DOL sections, so it is not loaded from the DOL.")
       return
-    
+
     self.ui.dol_offset.setText("%06X" % offset)
     self.ui.dol_address.setText("%08X" % address)

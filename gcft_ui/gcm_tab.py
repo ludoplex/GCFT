@@ -193,10 +193,7 @@ class GCMTab(QWidget):
     self.gcm_tree_widget_item_to_file_entry[item] = file_entry
   
   def is_banner_filename(self, filename):
-    match = re.search(r"\.bnr(?:$| |\.)", filename, re.I)
-    if match:
-      return True
-    return False
+    return bool(match := re.search(r"\.bnr(?:$| |\.)", filename, re.I))
   
   def export_gcm_by_path(self, gcm_path):
     if os.path.realpath(self.gcm.iso_path) == os.path.realpath(gcm_path):
@@ -267,18 +264,18 @@ class GCMTab(QWidget):
   def add_replace_files_from_folder_by_path(self, folder_path):
     # First ensure the input folder's directory structure is correct.
     root_names = set(os.listdir(folder_path))
-    if len(root_names) == 0:
+    if not root_names:
       QMessageBox.warning(self, "Invalid folder structure", "Input folder is empty. No files to import.")
       return
-    if root_names & set(["files", "sys"]) != root_names:
+    if root_names & {"files", "sys"} != root_names:
       QMessageBox.warning(self, "Invalid folder structure", "Input folder contains unknown files or folders in its root directory.\n\nMake sure you're selecting the correct folder - it should be the folder with 'files' and 'sys' inside of it, not the 'files' folder itself.")
       return
     if not all(os.path.isdir(os.path.join(folder_path, name)) for name in root_names):
       QMessageBox.warning(self, "Invalid folder structure", "Input folder contains files in places of folders in its root directory.\n\nMake sure you're selecting the correct folder - it should be the folder with 'files' and 'sys' inside of it, not the 'files' folder itself.")
       return
-    
+
     replace_paths, add_paths = self.gcm.collect_files_to_replace_and_add_from_disk(folder_path)
-    
+
     message = "Importing files from this folder will replace %d existing files and add %d new files.\n\nAre you sure you want to proceed?" % (len(replace_paths), len(add_paths))
     response = QMessageBox.question(self, 
       "Confirm import files",
@@ -288,10 +285,10 @@ class GCMTab(QWidget):
     )
     if response != QMessageBox.Yes:
       return
-    
+
     generator = self.gcm.import_files_from_disk_by_paths(folder_path, replace_paths, add_paths)
     max_val = len(replace_paths) + len(add_paths)
-    
+
     self.window().start_progress_thread(
       generator, "Importing files", max_val,
       self.add_replace_files_from_folder_by_path_complete
@@ -310,15 +307,15 @@ class GCMTab(QWidget):
   def show_gcm_files_tree_context_menu(self, pos):
     if self.gcm is None:
       return
-    
+
     item = self.ui.gcm_files_tree.itemAt(pos)
     if item is None:
       return
-    
+
     file = self.gcm_tree_widget_item_to_file_entry.get(item)
     if file is None:
       return
-    
+
     if file.is_dir:
       # TODO: Implement extracting/replacing folders
       menu = QMenu(self)
@@ -329,15 +326,14 @@ class GCMTab(QWidget):
       if file.file_path != "files":
         menu.addAction(self.ui.actionDeleteGCMFolder)
         self.ui.actionDeleteGCMFolder.setData(file)
-      menu.exec_(self.ui.gcm_files_tree.mapToGlobal(pos))
     else:
       menu = QMenu(self)
-      
+
       basename, file_ext = os.path.splitext(file.name)
       if file_ext == ".bti" or self.is_banner_filename(file.name):
         menu.addAction(self.ui.actionOpenGCMImage)
         self.ui.actionOpenGCMImage.setData(file)
-        
+
         menu.addAction(self.ui.actionReplaceGCMImage)
         self.ui.actionReplaceGCMImage.setData(file)
         if self.bti_tab.bti is None:
@@ -347,7 +343,7 @@ class GCMTab(QWidget):
       elif file_ext == ".arc":
         menu.addAction(self.ui.actionOpenGCMRARC)
         self.ui.actionOpenGCMRARC.setData(file)
-        
+
         menu.addAction(self.ui.actionReplaceGCMRARC)
         self.ui.actionReplaceGCMRARC.setData(file)
         if self.rarc_tab.rarc is None:
@@ -357,7 +353,7 @@ class GCMTab(QWidget):
       elif file_ext == ".jpc":
         menu.addAction(self.ui.actionOpenGCMJPC)
         self.ui.actionOpenGCMJPC.setData(file)
-        
+
         menu.addAction(self.ui.actionReplaceGCMJPC)
         self.ui.actionReplaceGCMJPC.setData(file)
         if self.jpc_tab.jpc is None:
@@ -367,14 +363,14 @@ class GCMTab(QWidget):
       elif file.file_path == "sys/main.dol":
         menu.addAction(self.ui.actionOpenGCMDOL)
         self.ui.actionOpenGCMDOL.setData(file)
-        
+
         menu.addAction(self.ui.actionReplaceGCMDOL)
         self.ui.actionReplaceGCMDOL.setData(file)
         if self.dol_tab.dol is None:
           self.ui.actionReplaceGCMDOL.setDisabled(True)
         else:
           self.ui.actionReplaceGCMDOL.setDisabled(False)
-      
+
       menu.addAction(self.ui.actionExtractGCMFile)
       self.ui.actionExtractGCMFile.setData(file)
       if file.file_path != "sys/fst.bin": # Regenerated automatically
@@ -383,8 +379,9 @@ class GCMTab(QWidget):
       if not file.is_system_file:
         menu.addAction(self.ui.actionDeleteGCMFile)
         self.ui.actionDeleteGCMFile.setData(file)
-      
-      menu.exec_(self.ui.gcm_files_tree.mapToGlobal(pos))
+
+
+    menu.exec_(self.ui.gcm_files_tree.mapToGlobal(pos))
   
   def extract_file_from_gcm_by_path(self, file_path):
     file = self.ui.actionExtractGCMFile.data()
@@ -411,19 +408,19 @@ class GCMTab(QWidget):
   
   def replace_file_in_gcm_by_path(self, file_path):
     file = self.ui.actionReplaceGCMFile.data()
-    
+
     with open(file_path, "rb") as f:
       data = BytesIO(f.read())
-    
+
     if file.file_path in ["sys/boot.bin", "sys/bi2.bin"] and data_len(data) != file.file_size:
       QMessageBox.warning(self, "Cannot change this file's size", "The size of boot.bin and bi2.bin cannot be changed.")
       return
-    
+
     self.gcm.changed_files[file.file_path] = data
-    
+
     self.update_changed_file_size_in_gcm(file)
-    
-    self.window().ui.statusbar.showMessage("Replaced %s." % file.file_path, 3000)
+
+    self.window().ui.statusbar.showMessage(f"Replaced {file.file_path}.", 3000)
   
   def delete_file_in_gcm(self):
     file_entry = self.ui.actionDeleteGCMFile.data()
@@ -471,15 +468,16 @@ class GCMTab(QWidget):
   
   def replace_rarc_in_gcm(self):
     file_entry = self.ui.actionReplaceGCMRARC.data()
-    
+
     self.rarc_tab.rarc.save_changes()
     data = make_copy_data(self.rarc_tab.rarc.data)
-    
+
     self.gcm.changed_files[file_entry.file_path] = data
-    
+
     self.update_changed_file_size_in_gcm(file_entry)
-    
-    self.window().ui.statusbar.showMessage("Replaced %s." % file_entry.file_path, 3000)
+
+    self.window().ui.statusbar.showMessage(f"Replaced {file_entry.file_path}.",
+                                           3000)
   
   def open_image_in_gcm(self):
     file_entry = self.ui.actionOpenGCMImage.data()
@@ -498,25 +496,26 @@ class GCMTab(QWidget):
   
   def replace_image_in_gcm(self):
     file_entry = self.ui.actionReplaceGCMImage.data()
-    
+
     self.bti_tab.bti.save_changes()
     data = make_copy_data(self.bti_tab.bti.data)
-    
+
     if self.is_banner_filename(file_entry.name):
       if self.bti_tab.bti.image_format != ImageFormat.RGB5A3 or self.bti_tab.bti.width != 96 or self.bti_tab.bti.height != 32 or data_len(self.bti_tab.bti.image_data) != 0x1800:
         QMessageBox.warning(self, "Invalid banner image", "Invalid banner image. Banner images must be exactly 96x32 pixels in size and use the RGB5A3 image format.")
         return
-      
+
       orig_banner_data = self.gcm.get_changed_file_data(file_entry.file_path)
       image_data_bytes = read_bytes(self.bti_tab.bti.image_data, 0x00, 0x1800)
       data = make_copy_data(orig_banner_data)
       write_bytes(data, 0x20, image_data_bytes)
-    
+
     self.gcm.changed_files[file_entry.file_path] = data
-    
+
     self.update_changed_file_size_in_gcm(file_entry)
-    
-    self.window().ui.statusbar.showMessage("Replaced %s." % file_entry.file_path, 3000)
+
+    self.window().ui.statusbar.showMessage(f"Replaced {file_entry.file_path}.",
+                                           3000)
   
   def open_jpc_in_gcm(self):
     file_entry = self.ui.actionOpenGCMJPC.data()
@@ -532,15 +531,16 @@ class GCMTab(QWidget):
   
   def replace_jpc_in_gcm(self):
     file_entry = self.ui.actionReplaceGCMJPC.data()
-    
+
     self.jpc_tab.jpc.save_changes()
     data = make_copy_data(self.jpc_tab.jpc.data)
-    
+
     self.gcm.changed_files[file_entry.file_path] = data
-    
+
     self.update_changed_file_size_in_gcm(file_entry)
-    
-    self.window().ui.statusbar.showMessage("Replaced %s." % file_entry.file_path, 3000)
+
+    self.window().ui.statusbar.showMessage(f"Replaced {file_entry.file_path}.",
+                                           3000)
   
   def open_dol_in_gcm(self):
     file_entry = self.ui.actionOpenGCMDOL.data()
@@ -556,31 +556,32 @@ class GCMTab(QWidget):
   
   def replace_dol_in_gcm(self):
     file_entry = self.ui.actionReplaceGCMDOL.data()
-    
+
     self.dol_tab.dol.save_changes()
     data = make_copy_data(self.dol_tab.dol.data)
-    
+
     self.gcm.changed_files[file_entry.file_path] = data
-    
+
     self.update_changed_file_size_in_gcm(file_entry)
-    
-    self.window().ui.statusbar.showMessage("Replaced %s." % file_entry.file_path, 3000)
+
+    self.window().ui.statusbar.showMessage(f"Replaced {file_entry.file_path}.",
+                                           3000)
   
   def add_file_to_gcm_by_path(self, file_path):
     dir_entry = self.ui.actionAddGCMFile.data()
-    
+
     file_name = os.path.basename(file_path)
     with open(file_path, "rb") as f:
       file_data = BytesIO(f.read())
     file_size = data_len(file_data)
     file_size_str = self.window().stringify_number(file_size)
-    
-    gcm_file_path = dir_entry.file_path + "/" + file_name
+
+    gcm_file_path = f"{dir_entry.file_path}/{file_name}"
     if gcm_file_path.lower() in self.gcm.files_by_path_lowercase:
       QMessageBox.warning(self, "File already exists", "Cannot add new file. The selected folder already contains a file named \"%s\".\n\nIf you wish to replace the existing file, right click on it in the files tree and select 'Replace File'." % file_name)
       return
     file_entry = self.gcm.add_new_file(gcm_file_path, file_data)
-    
+
     dir_item = self.gcm_file_entry_to_tree_widget_item[dir_entry]
     file_item = QTreeWidgetItem([file_name, file_size_str])
     dir_item.addChild(file_item)
@@ -589,7 +590,7 @@ class GCMTab(QWidget):
   
   def add_folder_to_gcm(self):
     parent_dir_entry = self.ui.actionAddGCMFolder.data()
-    
+
     dir_name, confirmed = QInputDialog.getText(
       self, "Input Folder Name", "Write the name for the new folder:",
       flags=Qt.WindowSystemMenuHint | Qt.WindowTitleHint
@@ -602,13 +603,13 @@ class GCMTab(QWidget):
     if dir_name in [".", ".."]:
       QMessageBox.warning(self, "Invalid folder name", "You cannot create folders named \".\" or \"..\".")
       return
-    
-    gcm_dir_path = parent_dir_entry.file_path + "/" + dir_name
+
+    gcm_dir_path = f"{parent_dir_entry.file_path}/{dir_name}"
     if gcm_dir_path.lower() in self.gcm.dirs_by_path_lowercase:
       QMessageBox.warning(self, "Directory already exists", "Cannot add new folder. A folder named \"%s\" already exists in the specified location." % dir_name)
       return
     dir_entry = self.gcm.add_new_directory(gcm_dir_path)
-    
+
     self.add_gcm_file_entry_to_files_tree(dir_entry)
   
   

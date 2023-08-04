@@ -60,8 +60,8 @@ class J3DTab(QWidget):
     if current_filter is not None:
       filters.append(current_filter)
     filters.append("All J3D files (*.bmd *.bdl *.bmt *.bls *.btk *.bck *.brk *.bpk *.btp *.bca *.bva *.bla)")
-    
-    j3d_name = "%s.%s" % (self.j3d_name, self.j3d.file_type[:3])
+
+    j3d_name = f"{self.j3d_name}.{self.j3d.file_type[:3]}"
     self.window().generic_do_gui_file_operation(
       op_callback=self.export_j3d_by_path,
       is_opening=False, is_saving=True, is_folder=False,
@@ -180,20 +180,19 @@ class J3DTab(QWidget):
     layout = self.ui.scrollAreaWidgetContents.layout()
     while layout.count():
       item = layout.takeAt(0)
-      widget = item.widget()
-      if widget:
+      if widget := item.widget():
         widget.deleteLater()
     self.ui.j3d_sidebar_label.setText("Extra information will be displayed here as necessary.")
-    
+
     # Re-enable the main sidebar scrollarea by default in case it was disabled previously.
     self.ui.scrollArea.setWidgetResizable(True)
-    
+
     selected_items = self.ui.j3d_chunks_tree.selectedItems()
     if not selected_items:
       return
     item = selected_items[0]
     obj = self.tree_widget_item_to_object.get(item)
-    
+
     if isinstance(obj, MDLEntry):
       self.mdl_entry_selected(obj)
     elif isinstance(obj, AnimationKeyframe):
@@ -205,32 +204,33 @@ class J3DTab(QWidget):
   
   def mdl_entry_selected(self, mdl_entry):
     layout = self.ui.scrollAreaWidgetContents.layout()
-    
+
     # Disable the main sidebar scrollarea since we will have two tabs with their own scrollareas instead.
     self.ui.scrollArea.setWidgetResizable(False)
-    
+
     entry_index = self.j3d.mdl3.entries.index(mdl_entry)
     mat_name = self.j3d.mat3.mat_names[entry_index]
-    self.ui.j3d_sidebar_label.setText("Showing material display list for: %s" % mat_name)
-    
+    self.ui.j3d_sidebar_label.setText(
+        f"Showing material display list for: {mat_name}")
+
     bp_commands_widget = QWidget()
     bp_commands_layout = QVBoxLayout(bp_commands_widget)
     xf_commands_widget = QWidget()
     xf_commands_layout = QVBoxLayout(xf_commands_widget)
-    
+
     bp_commands_scroll_area = QScrollArea()
     bp_commands_scroll_area.setWidgetResizable(True)
     bp_commands_scroll_area.setWidget(bp_commands_widget)
-    
+
     xf_commands_scroll_area = QScrollArea()
     xf_commands_scroll_area.setWidgetResizable(True)
     xf_commands_scroll_area.setWidget(xf_commands_widget)
-    
+
     tab_widget = QTabWidget()
     tab_widget.addTab(bp_commands_scroll_area, "BP Commands")
     tab_widget.addTab(xf_commands_scroll_area, "XF Commands")
     layout.addWidget(tab_widget)
-    
+
     for bp_command in mdl_entry.bp_commands:
       if bp_command.register in [entry.value for entry in BPRegister]:
         reg_name = BPRegister(bp_command.register).name
@@ -240,7 +240,7 @@ class J3DTab(QWidget):
       label = QLabel()
       label.setText(command_text)
       bp_commands_layout.addWidget(label)
-    
+
     for xf_command in mdl_entry.xf_commands:
       if xf_command.register in [entry.value for entry in XFRegister]:
         reg_name = XFRegister(xf_command.register).name
@@ -250,7 +250,7 @@ class J3DTab(QWidget):
       label = QLabel()
       label.setText(command_text)
       xf_commands_layout.addWidget(label)
-    
+
     bp_commands_layout.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
     xf_commands_layout.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
   
@@ -389,30 +389,30 @@ class J3DTab(QWidget):
   
   def replace_image_in_j3d(self):
     texture = self.ui.actionReplaceJ3DImage.data()
-    
+
     self.bti_tab.bti.save_changes()
-    
+
     # Need to make a fake BTI header for it to read from.
     data = BytesIO()
     bti_header_bytes = read_bytes(self.bti_tab.bti.data, self.bti_tab.bti.header_offset, 0x20)
     write_bytes(data, 0x00, bti_header_bytes)
-    
+
     texture.read_header(data)
-    
+
     texture.image_data = make_copy_data(self.bti_tab.bti.image_data)
     texture.palette_data = make_copy_data(self.bti_tab.bti.palette_data)
-    
+
     texture.save_header_changes()
-    
+
     # Update texture size displayed in the UI.
     texture_total_size = 0
     texture_total_size += data_len(texture.image_data)
     texture_total_size += data_len(texture.palette_data)
     texture_size_str = self.window().stringify_number(texture_total_size, min_hex_chars=5)
-    
+
     item = self.j3d_texture_to_tree_widget_item.get(texture)
     item.setText(self.j3d_col_name_to_index["Size"], texture_size_str)
-    
+
     texture_index = self.j3d.tex1.textures.index(texture)
     texture_name = self.j3d.tex1.texture_names[texture_index]
-    self.window().ui.statusbar.showMessage("Replaced %s." % texture_name, 3000)
+    self.window().ui.statusbar.showMessage(f"Replaced {texture_name}.", 3000)

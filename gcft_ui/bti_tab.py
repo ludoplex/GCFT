@@ -35,43 +35,44 @@ class BTITab(QWidget):
     super().__init__()
     self.ui = Ui_BTITab()
     self.ui.setupUi(self)
-    
+
     self.bti = None
     self.bti_name = None
-    
+
     self.ui.export_bti.setDisabled(True)
     self.ui.export_bti_image.setDisabled(True)
-    
+
     self.ui.bti_file_size.setText("")
     self.ui.bti_resolution.setText("")
     self.ui.bti_num_colors.setText("")
     self.ui.bti_max_colors.setText("")
-    
+
     checkerboard_path = os.path.join(ASSETS_PATH, "checkerboard.png")
     checkerboard_path = checkerboard_path.replace("\\", "/")
-    self.ui.bti_image_label.setStyleSheet("border-image: url(%s) repeat;" % checkerboard_path)
+    self.ui.bti_image_label.setStyleSheet(
+        f"border-image: url({checkerboard_path}) repeat;")
     self.ui.bti_image_label.hide()
-    
+
     self.ui.import_bti.clicked.connect(self.import_bti)
     self.ui.export_bti.clicked.connect(self.export_bti)
     self.ui.import_bti_image.clicked.connect(self.import_bti_image)
     self.ui.export_bti_image.clicked.connect(self.export_bti_image)
     self.ui.import_bti_from_bnr.clicked.connect(self.import_bti_from_bnr)
-    
+
     for field_name, field_enum in BTI_ENUM_FIELDS:
-      widget_name = "bti_" + field_name
+      widget_name = f"bti_{field_name}"
       combobox_widget = getattr(self.ui, widget_name)
       combobox_widget.setDisabled(True)
-      
+
       for enum_value in field_enum:
         combobox_widget.addItem(enum_value.name)
       combobox_widget.currentIndexChanged.connect(self.bti_header_field_changed)
-    
+
     for field_name, byte_size in BTI_INTEGER_FIELDS:
-      widget_name = "bti_" + field_name
+      widget_name = f"bti_{field_name}"
       line_edit_widget = getattr(self.ui, widget_name)
       line_edit_widget.setDisabled(True)
-      
+
       value_str = ""
       line_edit_widget.setText(value_str)
       line_edit_widget.editingFinished.connect(self.bti_header_field_changed)
@@ -85,7 +86,7 @@ class BTITab(QWidget):
     )
   
   def export_bti(self):
-    bti_name = self.bti_name + ".bti"
+    bti_name = f"{self.bti_name}.bti"
     self.window().generic_do_gui_file_operation(
       op_callback=self.export_bti_by_path,
       is_opening=False, is_saving=True, is_folder=False,
@@ -101,7 +102,7 @@ class BTITab(QWidget):
     )
   
   def export_bti_image(self):
-    png_name = self.bti_name + ".png"
+    png_name = f"{self.bti_name}.png"
     self.window().generic_do_gui_file_operation(
       op_callback=self.export_bti_image_by_path,
       is_opening=False, is_saving=True, is_folder=False,
@@ -128,7 +129,7 @@ class BTITab(QWidget):
   def import_bti_by_data(self, data, bti_name):
     prev_bti = self.bti
     self.bti = BTIFile(data)
-    
+
     try:
       self.reload_bti_image()
     except Exception as e:
@@ -138,20 +139,20 @@ class BTITab(QWidget):
       error_message = "Failed to render BTI image with error:\n%s\n\n%s" % (str(e), stack_trace)
       QMessageBox.critical(self, error_message_title, error_message)
       return
-    
+
     self.original_bti_image = self.bti_image
-    
+
     self.bti_name = bti_name
-    
-    
+
+
     for field_name, field_enum in BTI_ENUM_FIELDS:
-      widget_name = "bti_" + field_name
+      widget_name = f"bti_{field_name}"
       combobox_widget = getattr(self.ui, widget_name)
       combobox_widget.setDisabled(False)
-      
+
       current_enum_value = getattr(self.bti, field_name)
       current_enum_name = current_enum_value.name
-      
+
       index_of_value = None
       for i in range(combobox_widget.count()):
         text = combobox_widget.itemText(i)
@@ -159,32 +160,32 @@ class BTITab(QWidget):
           index_of_value = i
           break
       if index_of_value is None:
-        print("Cannot find value %s in combobox %s" % (current_enum_name, widget_name))
+        print(f"Cannot find value {current_enum_name} in combobox {widget_name}")
         index_of_value = 0
-      
+
       combobox_widget.blockSignals(True)
       combobox_widget.setCurrentIndex(index_of_value)
       combobox_widget.blockSignals(False)
-    
-    
+
+
     for field_name, byte_size in BTI_INTEGER_FIELDS:
-      widget_name = "bti_" + field_name
+      widget_name = f"bti_{field_name}"
       line_edit_widget = getattr(self.ui, widget_name)
       line_edit_widget.setDisabled(False)
-      
+
       value = getattr(self.bti, field_name)
       value_str = self.window().stringify_number(value, min_hex_chars=2*byte_size)
       combobox_widget.blockSignals(True)
       line_edit_widget.setText(value_str)
       combobox_widget.blockSignals(False)
-    
+
     # Disable the palette format dropdown when the image format doesn't use palettes.
     if self.bti.needs_palettes():
       self.ui.bti_palette_format.setDisabled(False)
     else:
       self.ui.bti_palette_format.setDisabled(True)
-    
-    
+
+
     self.ui.export_bti.setDisabled(False)
     self.ui.export_bti_image.setDisabled(False)
   
@@ -292,38 +293,37 @@ class BTITab(QWidget):
   
   def bti_header_field_changed(self):
     for field_name, field_enum in BTI_ENUM_FIELDS:
-      widget_name = "bti_" + field_name
+      widget_name = f"bti_{field_name}"
       combobox_widget = getattr(self.ui, widget_name)
-      
+
       current_enum_name = combobox_widget.itemText(combobox_widget.currentIndex())
       current_enum_value = field_enum[current_enum_name]
-      
+
       setattr(self.bti, field_name, current_enum_value)
-    
-    
+
+
     for field_name, byte_size in BTI_INTEGER_FIELDS:
-      widget_name = "bti_" + field_name
+      widget_name = f"bti_{field_name}"
       line_edit_widget = getattr(self.ui, widget_name)
       new_str_value = line_edit_widget.text()
       old_value = getattr(self.bti, field_name)
-      
+
       line_edit_widget.blockSignals(True)
-      
+
       if self.window().display_hexadecimal_numbers:
-        hexadecimal_match = re.search(r"^\s*(?:0x)?([0-9a-f]+)\s*$", new_str_value, re.IGNORECASE)
-        if hexadecimal_match:
-          new_value = int(hexadecimal_match.group(1), 16)
+        if hexadecimal_match := re.search(r"^\s*(?:0x)?([0-9a-f]+)\s*$",
+                                          new_str_value, re.IGNORECASE):
+          new_value = int(hexadecimal_match[1], 16)
         else:
           QMessageBox.warning(self, "Invalid value", "\"%s\" is not a valid hexadecimal number." % new_str_value)
           new_value = old_value
+      elif decimal_match := re.search(r"^\s*(\d+)\s*$", new_str_value,
+                                      re.IGNORECASE):
+        new_value = int(decimal_match[1])
       else:
-        decimal_match = re.search(r"^\s*(\d+)\s*$", new_str_value, re.IGNORECASE)
-        if decimal_match:
-          new_value = int(decimal_match.group(1))
-        else:
-          QMessageBox.warning(self, "Invalid value", "\"%s\" is not a valid decimal number." % new_str_value)
-          new_value = old_value
-      
+        QMessageBox.warning(self, "Invalid value", "\"%s\" is not a valid decimal number." % new_str_value)
+        new_value = old_value
+
       if new_value < 0:
         QMessageBox.warning(self, "Invalid value", "Value cannot be negative.")
         new_value = old_value
@@ -333,19 +333,19 @@ class BTITab(QWidget):
           "Value is too large to fit in field %s (maximum value: 0x%X)" % (field_name, (2**(byte_size*8))-1)
         )
         new_value = old_value
-      
+
       setattr(self.bti, field_name, new_value)
-      
+
       new_str_value = self.window().stringify_number(new_value, min_hex_chars=2*byte_size)
       line_edit_widget.setText(new_str_value)
       line_edit_widget.blockSignals(False)
-    
+
     # Disable the palette format dropdown when the image format doesn't use palettes.
     if self.bti.needs_palettes():
       self.ui.bti_palette_format.setDisabled(False)
     else:
       self.ui.bti_palette_format.setDisabled(True)
-    
+
     try:
       self.bti.replace_image(self.original_bti_image)
     except Exception as e:
@@ -354,7 +354,7 @@ class BTITab(QWidget):
       error_message = "Failed to import image with error:\n%s\n\n%s" % (str(e), stack_trace)
       QMessageBox.critical(self, error_message_title, error_message)
       return
-    
+
     self.bti.save_changes()
-    
+
     self.reload_bti_image()

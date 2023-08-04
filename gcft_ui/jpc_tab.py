@@ -47,7 +47,7 @@ class JPCTab(QWidget):
     )
   
   def export_jpc(self):
-    jpc_name = self.jpc_name + ".jpc"
+    jpc_name = f"{self.jpc_name}.jpc"
     self.window().generic_do_gui_file_operation(
       op_callback=self.export_jpc_by_path,
       is_opening=False, is_saving=True, is_folder=False,
@@ -155,27 +155,24 @@ class JPCTab(QWidget):
     layout = self.ui.scrollAreaWidgetContents.layout()
     while layout.count():
       item = layout.takeAt(0)
-      widget = item.widget()
-      if widget:
+      if widget := item.widget():
         widget.deleteLater()
     self.ui.jpc_sidebar_label.setText("Extra information will be displayed here as necessary.")
-    
+
     selected_items = self.ui.jpc_particles_tree.selectedItems()
     if not selected_items:
       return
     item = selected_items[0]
-    
-    chunk = self.jpc_tree_widget_item_to_chunk.get(item)
-    if chunk:
+
+    if chunk := self.jpc_tree_widget_item_to_chunk.get(item):
       if chunk.magic == "BSP1":
         self.bsp1_chunk_selected(chunk)
         return
       elif chunk.magic == "SSP1":
         self.ssp1_chunk_selected(chunk)
         return
-    
-    keyframe = self.jpc_tree_widget_item_to_color_anim_keyframe.get(item)
-    if keyframe:
+
+    if keyframe := self.jpc_tree_widget_item_to_color_anim_keyframe.get(item):
       self.color_anim_keyframe_selected(keyframe)
       return
   
@@ -246,28 +243,27 @@ class JPCTab(QWidget):
   def show_jpc_particles_tree_context_menu(self, pos):
     if self.jpc is None:
       return
-    
+
     item = self.ui.jpc_particles_tree.itemAt(pos)
     if item is None:
       return
-    
-    texture = self.jpc_tree_widget_item_to_texture.get(item)
-    if texture:
+
+    if texture := self.jpc_tree_widget_item_to_texture.get(item):
       particle_item = item.parent().parent()
       particle = self.jpc_tree_widget_item_to_particle.get(particle_item)
-      
+
       menu = QMenu(self)
-      
+
       menu.addAction(self.ui.actionOpenJPCImage)
       self.ui.actionOpenJPCImage.setData(texture)
-        
+
       menu.addAction(self.ui.actionReplaceJPCImage)
       self.ui.actionReplaceJPCImage.setData((particle, texture))
       if self.bti_tab.bti is None:
         self.ui.actionReplaceJPCImage.setDisabled(True)
       else:
         self.ui.actionReplaceJPCImage.setDisabled(False)
-      
+
       menu.exec_(self.ui.jpc_particles_tree.mapToGlobal(pos))
   
   def open_image_in_jpc(self):
@@ -297,14 +293,14 @@ class JPCTab(QWidget):
   
   def replace_image_in_jpc(self):
     particle, texture = self.ui.actionReplaceJPCImage.data()
-    
+
     num_particles_sharing_texture = 0
     for other_particle in self.jpc.particles:
       for other_texture_id in other_particle.tdb1.texture_ids:
         other_texture = self.jpc.textures[other_texture_id]
         if other_texture == texture:
           num_particles_sharing_texture += 1
-    
+
     if num_particles_sharing_texture > 1:
       # TODO: Add an option to create a new texture for this particle and replace that, so that editing the texture for all particles isn't the only choice.
       message = "The texture you are about to replace, '%s', is used by %d different particles in this JPC. If you replace it, it will affect all %d of those particles.\n\nAre you sure you want to replace this texture?" % (texture.filename, num_particles_sharing_texture, num_particles_sharing_texture)
@@ -316,19 +312,19 @@ class JPCTab(QWidget):
       )
       if response != QMessageBox.Yes:
         return
-    
+
     self.bti_tab.bti.save_changes()
-    
+
     # Need to make a fake BTI header for it to read from.
     data = BytesIO()
     bti_header_bytes = read_bytes(self.bti_tab.bti.data, self.bti_tab.bti.header_offset, 0x20)
     write_bytes(data, 0x00, bti_header_bytes)
-    
+
     texture.bti.read_header(data)
-    
+
     texture.bti.image_data = make_copy_data(self.bti_tab.bti.image_data)
     texture.bti.palette_data = make_copy_data(self.bti_tab.bti.palette_data)
-    
+
     texture.bti.save_header_changes()
-    
-    self.window().ui.statusbar.showMessage("Replaced %s." % texture.filename, 3000)
+
+    self.window().ui.statusbar.showMessage(f"Replaced {texture.filename}.", 3000)
